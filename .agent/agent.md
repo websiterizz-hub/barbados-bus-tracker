@@ -17,19 +17,20 @@ This is a bus tracking application for Barbados. It consists of:
 - `src/server.js`: The entry point for the API and static file serving.
 - `flutter_app/pubspec.yaml`: Flutter project configuration.
 
-## Deployment Strategy
-- **GitHub**:
-    1. Initialize local Git repo.
-    2. Add `.gitignore` to exclude large binaries and runtime logs.
-    3. Commit all source code.
-    4. Provide the USER with commands to push to their remote repository.
-- **Vercel**:
-    - **API**: Host `src/server.js` as a Vercel Function (mapping via `vercel.json`).
-    - **Frontend**: Host the Flutter Web build.
-    - **Build Choice**: 
-        - Option A: Build Flutter Web locally and commit `flutter_app/build/web` (Reliable, fast deploy).
-        - Option B: Automated build on Vercel/GitHub (Requires Flutter SDK setup in CI).
+## Deployment Status
+- [x] Initialized Git repository.
+- [x] Created `.gitignore` (optimized for Vercel/GitHub).
+- [x] Built Flutter Web app locally (`build/web` committed).
+- [x] Created `vercel.json` and `api/index.js` for Vercel deployment.
+- [x] Committed all source code and artifacts to local master branch.
+
+## Final Steps for USER
+1. Create an empty repository on GitHub.
+2. Link local repo: `git remote add origin <URL>`
+3. Push code: `git push -u origin master`
+4. In Vercel, import the GitHub repository. It will auto-detect the configuration and deploy!
 
 ## Change Log
+- **2026-04-13 (d)**: Completed local setup for Vercel and Git. Built Flutter Web and configured serverless entry point.
 - **2026-04-13 (c)**: Researched Vercel monorepo deployment for Flutter + Node.
 - **2026-04-13 (b)**: Initialized `.agent/agent.md` and preparing for Vercel/GitHub deployment.
