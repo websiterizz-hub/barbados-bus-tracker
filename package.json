@@ -8,7 +8,7 @@
     "probe:live": "node scripts/probe-live-feed.js",
     "start": "node src/server.js",
     "test": "node --test",
-    "app:build:web": "cd flutter_app && flutter build web --dart-define=API_BASE_URL=http://127.0.0.1:3000",
+    "app:build:web": "cd flutter_app && flutter build web --dart-define=API_BASE_URL=\"\"",
     "app:build:windows": "cd flutter_app && flutter build windows --dart-define=API_BASE_URL=http://127.0.0.1:3000",
     "app:build:apk": "powershell -ExecutionPolicy Bypass -File scripts/build-android-apk.ps1",
     "app:web": "cd flutter_app && flutter run -d chrome --dart-define=API_BASE_URL=http://127.0.0.1:3000",
