@@ -41,7 +41,7 @@ class GeolocatorLocationService implements LocationService {
 
       final position = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
+          accuracy: LocationAccuracy.low,
           timeLimit: Duration(seconds: 15),
         ),
       );

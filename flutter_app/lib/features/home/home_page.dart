@@ -1809,6 +1809,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                       tracked: _trackedRoutes,
                       routeMatches: routeFocusMatches,
                       stopMatches: stopFocusMatches,
+                      location: _activeLocation,
                     ),
                   ],
                   if (_trackedRoutes == null &&
@@ -1819,6 +1820,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                       tracked: null,
                       routeMatches: routeFocusMatches,
                       stopMatches: stopFocusMatches,
+                      location: _activeLocation,
                     ),
                   ],
                   const SizedBox(height: 18),
@@ -4532,15 +4534,17 @@ class _NearbyStopsSection extends StatelessWidget {
 }
 
 class _ExploreMoreSection extends StatelessWidget {
+  final TrackedRoutesResponse? tracked;
+  final List<_RouteFocusMatch> routeMatches;
+  final List<_StopFocusMatch> stopMatches;
+  final SavedLocation? location;
+
   const _ExploreMoreSection({
     required this.tracked,
     required this.routeMatches,
     required this.stopMatches,
+    this.location,
   });
-
-  final TrackedRoutesResponse? tracked;
-  final List<_RouteFocusMatch> routeMatches;
-  final List<_StopFocusMatch> stopMatches;
 
   @override
   Widget build(BuildContext context) {
@@ -4562,7 +4566,7 @@ class _ExploreMoreSection extends StatelessWidget {
           children: [
             if (tracked != null) ...[
               const SizedBox(height: 12),
-              _TrackedIslandSection(tracked: tracked!),
+              _TrackedIslandSection(tracked: tracked!, location: location),
             ],
             if (routeMatches.isNotEmpty || stopMatches.isNotEmpty) ...[
               const SizedBox(height: 12),
@@ -4579,9 +4583,10 @@ class _ExploreMoreSection extends StatelessWidget {
 }
 
 class _TrackedIslandSection extends StatelessWidget {
-  const _TrackedIslandSection({required this.tracked});
+  const _TrackedIslandSection({required this.tracked, this.location});
 
   final TrackedRoutesResponse tracked;
+  final SavedLocation? location;
 
   @override
   Widget build(BuildContext context) {
@@ -4614,9 +4619,9 @@ class _TrackedIslandSection extends StatelessWidget {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(18),
               child: FlutterMap(
-                options: const MapOptions(
-                  initialCenter: _defaultIslandCenter,
-                  initialZoom: 10.8,
+                options: MapOptions(
+                  initialCenter: location != null ? LatLng(location!.lat, location!.lng) : _defaultIslandCenter,
+                  initialZoom: location != null ? 12.0 : 10.8,
                 ),
                 children: [
                   TileLayer(
@@ -4673,6 +4678,17 @@ class _TrackedIslandSection extends StatelessWidget {
                         )
                         .toList(),
                   ),
+                  if (location != null)
+                    MarkerLayer(
+                      markers: [
+                        Marker(
+                          point: LatLng(location!.lat, location!.lng),
+                          width: 44,
+                          height: 44,
+                          child: const UserLocationMarker(),
+                        ),
+                      ],
+                    ),
                 ],
               ),
             ),
