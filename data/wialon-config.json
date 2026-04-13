@@ -1,0 +1,9 @@
+{
+  "locatorUrl": "https://nimbus.wialon.com/locator/7e1577e50406418aa22aaa89cb5ea76a/",
+  "origin": "https://nimbus.wialon.com",
+  "hash": "7e1577e50406418aa22aaa89cb5ea76a",
+  "name": "All Routes",
+  "flespiToken": "2LvvLpcwkvT6sWkhNWthckPxa1NDYGHCTtpbDV30l0xYJoLSbRA3VlL34ngX66Hm",
+  "sentryUrl": "https://f46d0b00256c2c184a35d0fc77c855db@sentry-new.wialon.net/53",
+  "sentryServerName": "locator-service-nimbus-prod-689887f4f4-vwhrk"
+}

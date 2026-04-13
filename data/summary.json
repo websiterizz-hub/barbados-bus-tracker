@@ -1,0 +1,15 @@
+{
+  "builtAt": "2026-04-10T10:57:54.185Z",
+  "transportBoardRoutes": 177,
+  "locatorRoutes": 263,
+  "locatorStops": 629,
+  "locatorPatterns": 6,
+  "locatorTransportTypes": 5,
+  "joinedRoutes": 177,
+  "matchedRoutes": 141,
+  "unmatchedRoutes": 36,
+  "liveVehiclesCaptured": 270,
+  "liveVehiclesFresh": 14,
+  "locatorName": "All Routes",
+  "locatorHash": "7e1577e50406418aa22aaa89cb5ea76a"
+}

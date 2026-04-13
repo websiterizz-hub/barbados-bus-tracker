@@ -1,0 +1,15 @@
+{
+  "version": 2,
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/flutter_app/build/web/$1"
+    }
+  ],
+  "cleanUrls": true,
+  "trailingSlash": false
+}

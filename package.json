@@ -1,0 +1,32 @@
+{
+  "name": "bus-app",
+  "version": "1.0.0",
+  "description": "Barbados bus tracker research and data pipeline",
+  "main": "src/server.js",
+  "scripts": {
+    "build:data": "node scripts/build-datasets.js",
+    "probe:live": "node scripts/probe-live-feed.js",
+    "start": "node src/server.js",
+    "test": "node --test",
+    "app:build:web": "cd flutter_app && flutter build web --dart-define=API_BASE_URL=http://127.0.0.1:3000",
+    "app:build:windows": "cd flutter_app && flutter build windows --dart-define=API_BASE_URL=http://127.0.0.1:3000",
+    "app:build:apk": "powershell -ExecutionPolicy Bypass -File scripts/build-android-apk.ps1",
+    "app:web": "cd flutter_app && flutter run -d chrome --dart-define=API_BASE_URL=http://127.0.0.1:3000",
+    "app:windows": "cd flutter_app && flutter run -d windows --dart-define=API_BASE_URL=http://127.0.0.1:3000",
+    "app:android": "cd flutter_app && flutter run -d android --dart-define=API_BASE_URL=http://10.0.2.2:3000",
+    "vercel-build": "echo 'Using pre-built Flutter web files'"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "cheerio": "^1.2.0",
+    "cors": "^2.8.5",
+    "express": "^5.2.1",
+    "mqtt": "^5.15.1"
+  },
+  "devDependencies": {
+    "supertest": "^7.2.2"
+  }
+}
