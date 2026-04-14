@@ -138,7 +138,7 @@ class _StopDetailPageState extends ConsumerState<StopDetailPage> {
                             children: [
                               ToneChip(
                                 label: 'Auto ${_detail!.refreshHintSeconds}s',
-                                color: const Color(0xFF355C7D),
+                                color: const Color(0xFFB45309),
                               ),
                               if (_detail!.confidenceSummary.tracking > 0)
                                 ToneChip(
@@ -156,7 +156,7 @@ class _StopDetailPageState extends ConsumerState<StopDetailPage> {
                                 ToneChip(
                                   label:
                                       '${_detail!.confidenceSummary.announced} announced',
-                                  color: confidenceColor('announced'),
+                                  color: const Color(0xFF001F3F),
                                 ),
                             ],
                           ),

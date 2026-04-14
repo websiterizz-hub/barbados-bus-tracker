@@ -172,17 +172,17 @@ class _RouteDetailPageState extends ConsumerState<RouteDetailPage> {
                                   ? 'Official route'
                                   : 'Live-only route',
                               color: detail.source == 'official'
-                                  ? const Color(0xFF0B7A75)
-                                  : const Color(0xFF355C7D),
+                                  ? const Color(0xFF006875)
+                                  : const Color(0xFF001F3F),
                             ),
                             ToneChip(
                               label: 'Auto ${detail.refreshHintSeconds}s',
-                              color: const Color(0xFFE09F27),
+                              color: const Color(0xFFB45309),
                             ),
                             if (focusedVehicle != null)
-                              ToneChip(
-                                label: 'Bus ${focusedVehicle.uid} focus',
-                                color: const Color(0xFF9B4D3D),
+                              const ToneChip(
+                                label: 'Priority Focus',
+                                color: Color(0xFF006875),
                               ),
                           ],
                         ),
@@ -209,8 +209,8 @@ class _RouteDetailPageState extends ConsumerState<RouteDetailPage> {
                           Container(
                             padding: const EdgeInsets.all(14),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFFDF5F1),
-                              borderRadius: BorderRadius.circular(16),
+                            color: const Color(0xFF001F3F).withValues(alpha: 0.05),
+                            borderRadius: BorderRadius.circular(24),
                             ),
                             child: Row(
                               children: [
@@ -282,7 +282,7 @@ class _RouteDetailPageState extends ConsumerState<RouteDetailPage> {
                                           )
                                           .toList(),
                                       strokeWidth: 5,
-                                      color: const Color(0xFF0B7A75),
+                                      color: const Color(0xFF006875),
                                     ),
                                   ],
                                 ),
@@ -406,8 +406,8 @@ class _RouteDetailPageState extends ConsumerState<RouteDetailPage> {
                           (stop) => ListTile(
                             contentPadding: EdgeInsets.zero,
                             leading: CircleAvatar(
-                              backgroundColor: const Color(0xFFE8F7F4),
-                              foregroundColor: const Color(0xFF0B7A75),
+                              backgroundColor: const Color(0xFF00E5FF).withValues(alpha: 0.1),
+                              foregroundColor: const Color(0xFF006875),
                               child: Text('${stop.index + 1}'),
                             ),
                             title: Text(stop.name),
@@ -450,7 +450,7 @@ class _RouteDetailPageState extends ConsumerState<RouteDetailPage> {
                                         .map(
                                           (time) => ToneChip(
                                             label: time,
-                                            color: const Color(0xFF355C7D),
+                                            color: const Color(0xFF001F3F),
                                           ),
                                         )
                                         .toList(),

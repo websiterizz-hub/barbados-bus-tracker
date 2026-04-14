@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -138,7 +139,7 @@ double? _headingFieldToRadians(double? h) {
   if (h == null || !h.isFinite) {
     return null;
   }
-  // Locator may send radians (small magnitude) or degrees (0–360).
+  // Locator may send radians (small magnitude) or degrees (0â€“360).
   if (h.abs() < 6.5) {
     return h;
   }
@@ -160,7 +161,7 @@ double? _headingFieldToRadians(double? h) {
   return (east, north);
 }
 
-/// Uses actual motion (prev→now) vs bus→you. Telemetry heading is often wrong; motion wins.
+/// Uses actual motion (prevâ†’now) vs busâ†’you. Telemetry heading is often wrong; motion wins.
 _BusUserRelative _busRelativeToUser(Vehicle vehicle, SavedLocation? user) {
   if (user == null) {
     return _BusUserRelative.unknown;
@@ -264,7 +265,7 @@ int? _estimateSecondsToReachUser({
   return sec.clamp(25, 7200);
 }
 
-/// Crow-flight meters user → bus (tracked API vehicles often omit `distance_m`).
+/// Crow-flight meters user â†’ bus (tracked API vehicles often omit `distance_m`).
 int? _userToVehicleMeters(SavedLocation? user, Vehicle vehicle) {
   if (user == null) {
     return null;
@@ -798,7 +799,7 @@ class _HomePageState extends ConsumerState<HomePage> {
       final alertR = _proximityAlertRadiusMeters(_radiusMeters);
       final summary = pings
           .take(5)
-          .map((p) => '${p.routeLabel} · ${p.distanceMeters} m')
+          .map((p) => '${p.routeLabel} Â· ${p.distanceMeters} m')
           .join('   ');
       messenger.showMaterialBanner(
         MaterialBanner(
@@ -836,7 +837,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     final lines = pings
         .take(4)
         .map((x) => '${x.routeLabel} ${x.distanceMeters} m')
-        .join(' · ');
+        .join(' Â· ');
     unawaited(
       ref.read(notificationServiceProvider).showStickyLocalAlert(
         title: 'Bus inside ~${alertR}m radius',
@@ -1362,55 +1363,49 @@ class _HomePageState extends ConsumerState<HomePage> {
                 return rightLive.compareTo(leftLive);
               }
 
-              final leftDistance = left.closestStop?.distanceMeters ?? 1 << 30;
-              final rightDistance =
-                  right.closestStop?.distanceMeters ?? 1 << 30;
-              if (leftDistance != rightDistance) {
-                return leftDistance.compareTo(rightDistance);
-              }
-
-              return '${left.route.routeNumber}|${left.route.routeName}'
-                  .compareTo(
-                    '${right.route.routeNumber}|${right.route.routeName}',
-                  );
+              final leftDist = left.closestStop?.distanceMeters ?? 1 << 30;
+              final rightDist = right.closestStop?.distanceMeters ?? 1 << 30;
+              return leftDist.compareTo(rightDist);
             });
-      results.add(
-        _RouteFocusMatch(label: focus.label, options: options.take(6).toList()),
-      );
+      results.add(_RouteFocusMatch(label: focus.label, options: options));
     }
 
     return results;
   }
 
+  bool _routeMatchesFocus(RouteSummary route, _FocusQuery focus) {
+    final search = '${route.routeNumber} ${route.routeName} ${route.from} ${route.to}'.toLowerCase();
+    final kw = focus.keywords;
+    return kw.any((k) => search.contains(k.toLowerCase()));
+  }
+
   List<_StopFocusMatch> _stopFocusMatches(AppBootstrap bootstrap) {
     final results = <_StopFocusMatch>[];
-
     for (final focus in _stopFocuses) {
-      final matches =
-          bootstrap.stops.where((stop) {
-            final haystack = '${stop.name} ${stop.description}'.toLowerCase();
-            if (focus.keywords.isEmpty) {
-              return false;
-            }
-            return focus.keywords.any(haystack.contains);
-          }).toList()..sort((left, right) {
-            final leftDistance = _distanceToFocusStop(left) ?? 1 << 30;
-            final rightDistance = _distanceToFocusStop(right) ?? 1 << 30;
-            return leftDistance.compareTo(rightDistance);
-          });
+      final matches = bootstrap.stops
+          .where((stop) => _stopMatchesFocus(stop, focus))
+          .toList()
+            ..sort((left, right) {
+              final leftDistance = _distanceToFocusStop(left) ?? 1 << 30;
+              final rightDistance = _distanceToFocusStop(right) ?? 1 << 30;
+              return leftDistance.compareTo(rightDistance);
+            });
       if (matches.isEmpty) {
         continue;
       }
-      results.add(
-        _StopFocusMatch(
-          label: focus.label,
-          stop: matches.first,
-          distanceMeters: _distanceToFocusStop(matches.first),
-        ),
-      );
+      results.add(_StopFocusMatch(
+        label: focus.label, 
+        stop: matches.first,
+        distanceMeters: _distanceToFocusStop(matches.first),
+      ));
     }
-
     return results;
+  }
+
+  bool _stopMatchesFocus(StopSummary stop, _FocusQuery focus) {
+    final search = '${stop.name} ${stop.description}'.toLowerCase();
+    final kw = focus.keywords;
+    return kw.any((k) => search.contains(k.toLowerCase()));
   }
 
   List<_WatchIncomingArrival> _watchComingSoon() {
@@ -1598,12 +1593,12 @@ class _HomePageState extends ConsumerState<HomePage> {
     final etaLabel = formatArrivalEtaForDisplay(arrival);
     final seenLabel = arrival.lastSeenSeconds == null
         ? ''
-        : ' • seen ${arrival.lastSeenSeconds}s ago';
+        : ' â€¢ seen ${arrival.lastSeenSeconds}s ago';
     switch (arrival.confidenceState) {
       case 'tracking':
         return 'ETA $etaLabel$seenLabel';
       case 'at_terminal':
-        return 'At terminal • scheduled ${arrival.scheduledLabel}';
+        return 'At terminal â€¢ scheduled ${arrival.scheduledLabel}';
       default:
         return 'Scheduled after ${arrival.scheduledLabel}';
     }
@@ -1614,12 +1609,12 @@ class _HomePageState extends ConsumerState<HomePage> {
     final etaLabel = formatArrivalEtaForDisplay(arrival);
     final seenLabel = arrival.lastSeenSeconds == null
         ? ''
-        : ' • seen ${arrival.lastSeenSeconds}s ago';
+        : ' â€¢ seen ${arrival.lastSeenSeconds}s ago';
     switch (arrival.confidenceState) {
       case 'tracking':
         return 'ETA $etaLabel$seenLabel';
       case 'at_terminal':
-        return 'At terminal • scheduled ${arrival.scheduledLabel}';
+        return 'At terminal â€¢ scheduled ${arrival.scheduledLabel}';
       default:
         return 'Scheduled after ${arrival.scheduledLabel}';
     }
@@ -1630,303 +1625,264 @@ class _HomePageState extends ConsumerState<HomePage> {
     final bootstrap = ref.watch(bootstrapProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Barbados Bus Tracker'),
-        actions: [
-          IconButton(
-            tooltip: 'Search routes and stops',
-            onPressed: () => context.push('/search'),
-            icon: const Icon(Icons.search_rounded),
-          ),
-        ],
-      ),
-      body: AppBackground(
-        child: bootstrap.when(
-          data: (bootstrapData) {
-            final routeFocusMatches = _routeFocusMatches(bootstrapData);
-            final stopFocusMatches = _stopFocusMatches(bootstrapData);
-            final comingSoon = _watchComingSoon();
-            final areaAlerts = _areaAlerts();
-            final areaRoutes = _areaRouteMatches();
-            final trackedAreaVehicles = _trackedAreaVehicles();
-            final trackedByRouteId = {
-              for (final route
-                  in _trackedRoutes?.routes ?? const <TrackedRoute>[])
-                route.id: route,
-            };
+      extendBodyBehindAppBar: true,
+      body: bootstrap.when(
+        data: (bootstrapData) {
+          final routeFocusMatches = _routeFocusMatches(bootstrapData);
+          final stopFocusMatches = _stopFocusMatches(bootstrapData);
+          final comingSoon = _watchComingSoon();
+          final areaAlerts = _areaAlerts();
+          final areaRoutes = _areaRouteMatches();
+          final trackedAreaVehicles = _trackedAreaVehicles();
+          final trackedByRouteId = {
+            for (final route
+                in _trackedRoutes?.routes ?? const <TrackedRoute>[])
+              route.id: route,
+          };
 
-            return RefreshIndicator(
-              onRefresh: _refresh,
-              child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
-                children: [
-                  SectionCard(
-                    padding: const EdgeInsets.all(12),
-                    child: _LiveMapPanel(
-                      location: _activeLocation,
-                      nearby: _nearby,
-                      areaRoutes: areaRoutes,
-                      trackedByRouteId: trackedByRouteId,
-                      trackedRouteVehicles: trackedAreaVehicles,
-                      radiusMeters: _radiusMeters,
-                      now: _uiNow,
-                      referenceTime: _lastRefreshAt,
-                      refreshHintSeconds: _nearby?.refreshHintSeconds ?? 5,
-                      onLocate: _refresh,
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  SectionCard(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+          return Stack(
+            children: [
+              // ðŸ—ºï¸ Layer 0: The Map Base
+              Positioned.fill(
+                child: _LiveMapPanel(
+                  location: _activeLocation,
+                  nearby: _nearby,
+                  areaRoutes: areaRoutes,
+                  trackedByRouteId: trackedByRouteId,
+                  trackedRouteVehicles: trackedAreaVehicles,
+                  radiusMeters: _radiusMeters,
+                  now: _uiNow,
+                  referenceTime: _lastRefreshAt,
+                  refreshHintSeconds: _nearby?.refreshHintSeconds ?? 5,
+                  onLocate: _refresh,
+                ),
+              ),
+
+              // ðŸ›°ï¸ Layer 1: Floating Header Row
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: SafeArea(
+                  bottom: false,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          'Trust First',
-                          style: Theme.of(context).textTheme.headlineMedium
-                              ?.copyWith(fontWeight: FontWeight.w800),
-                        ),
-                        const SizedBox(height: 10),
-                        Text(
-                          'Nimbus live source stays in app. App now pushes watched-stop warnings at 30, 10, and 5 minutes, plus close-range bus alerts when telemetry proves bus is almost there.',
-                          style: Theme.of(context).textTheme.bodyLarge,
-                        ),
-                        const SizedBox(height: 18),
-                        Wrap(
-                          spacing: 10,
-                          runSpacing: 10,
-                          children: [
-                            ToneChip(
-                              label: 'Radius ${_radiusMeters}m',
-                              color: const Color(0xFF0B7A75),
+                        // Left: Settings/Alerts
+                        AppBarBackAction(fallbackLocation: '/'),
+                        // Right: Search
+                        IconButton(
+                          tooltip: 'Search Routes & Stops',
+                          style: IconButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            backgroundColor: const Color(0xFF0D1B2A).withValues(alpha: 0.6),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
                             ),
-                            ToneChip(
-                              label: _locationStatus == LocationStatus.available
-                                  ? 'Location on'
-                                  : 'Location needs help',
-                              color: _locationStatus == LocationStatus.available
-                                  ? const Color(0xFF0B7A75)
-                                  : const Color(0xFF9B4D3D),
-                            ),
-                            if (_trackedRoutes != null)
-                              ToneChip(
-                                label:
-                                    '${_trackedRoutes!.vehicleCount} tracked islandwide',
-                                color: const Color(0xFF355C7D),
-                              ),
-                            ToneChip(
-                              label: _notificationSetup.label,
-                              color: _notificationSetup.granted
-                                  ? const Color(0xFF0B7A75)
-                                  : _notificationSetup.supported
-                                  ? const Color(0xFF9B4D3D)
-                                  : const Color(0xFF355C7D),
-                            ),
-                            if (_lastKnownLocation != null)
-                              const ToneChip(
-                                label: 'Saved area ready',
-                                color: Color(0xFFE09F27),
-                              ),
-                          ],
-                        ),
-                        const SizedBox(height: 18),
-                        Wrap(
-                          spacing: 12,
-                          runSpacing: 12,
-                          children: [
-                            FilledButton.icon(
-                              onPressed: _refresh,
-                              icon: const Icon(Icons.my_location_rounded),
-                              label: const Text('Use My Location'),
-                            ),
-                            if (_locationStatus != LocationStatus.available)
-                              OutlinedButton.icon(
-                                onPressed: _fixLocationAccess,
-                                icon: const Icon(
-                                  Icons.location_searching_rounded,
-                                ),
-                                label: const Text('Fix Location Access'),
-                              ),
-                            if (_notificationSetup.needsPermission)
-                              OutlinedButton.icon(
-                                onPressed: _enablePhoneAlerts,
-                                icon: const Icon(Icons.notifications_active),
-                                label: const Text('Turn On Phone Alerts'),
-                              ),
-                            OutlinedButton.icon(
-                              onPressed: () => context.push('/search'),
-                              icon: const Icon(Icons.travel_explore_rounded),
-                              label: const Text('Search Bus'),
-                            ),
-                          ],
+                            padding: const EdgeInsets.all(10),
+                            minimumSize: const Size(44, 44),
+                          ),
+                          icon: const Icon(Icons.search_rounded, size: 22),
+                          onPressed: () => context.push('/search'),
                         ),
                       ],
                     ),
                   ),
-                  if (_message != null) ...[
-                    const SizedBox(height: 18),
-                    SectionCard(
-                      child: Text(
-                        _message!,
-                        style: Theme.of(context).textTheme.bodyLarge,
-                      ),
+                ),
+              ),
+
+              // ðŸ“‹ Layer 2: Draggable Information Sheet
+              DraggableScrollableSheet(
+                initialChildSize: 0.32,
+                minChildSize: 0.12,
+                maxChildSize: 0.90,
+                snap: true,
+                builder: (context, scrollController) {
+                  return ClipRRect(
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(36),
+                      topRight: Radius.circular(36),
                     ),
-                  ],
-                  if (_nearby != null) ...[
-                    const SizedBox(height: 18),
-                    _AreaRoutesSection(
-                      items: areaRoutes,
-                      trackedByRouteId: trackedByRouteId,
-                      now: _uiNow,
-                      referenceTime: _lastRefreshAt,
-                    ),
-                  ],
-                  if (_watchStatuses.isNotEmpty) ...[
-                    const SizedBox(height: 18),
-                    _AreaAlertsSection(alerts: areaAlerts),
-                    const SizedBox(height: 18),
-                    _ComingSoonSection(
-                      items: comingSoon,
-                      notificationSetup: _notificationSetup,
-                      onEnableAlerts: _enablePhoneAlerts,
-                      enabledReminderMinutes: _enabledReminderMinutes,
-                      onToggleReminderMinute: _toggleReminderMinute,
-                      now: _uiNow,
-                      referenceTime: _lastRefreshAt,
-                    ),
-                  ],
-                  if (_watchStatuses.isNotEmpty) ...[
-                    const SizedBox(height: 18),
-                    _WatchDetailsSection(
-                      statuses: _watchStatuses,
-                      now: _uiNow,
-                      referenceTime: _lastRefreshAt,
-                    ),
-                  ],
-                  if (_trackedRoutes != null) ...[
-                    const SizedBox(height: 18),
-                    _ExploreMoreSection(
-                      tracked: _trackedRoutes,
-                      routeMatches: routeFocusMatches,
-                      stopMatches: stopFocusMatches,
-                      location: _activeLocation,
-                    ),
-                  ],
-                  if (_trackedRoutes == null &&
-                      (routeFocusMatches.isNotEmpty ||
-                          stopFocusMatches.isNotEmpty)) ...[
-                    const SizedBox(height: 18),
-                    _ExploreMoreSection(
-                      tracked: null,
-                      routeMatches: routeFocusMatches,
-                      stopMatches: stopFocusMatches,
-                      location: _activeLocation,
-                    ),
-                  ],
-                  const SizedBox(height: 18),
-                  if (_isLoading && _nearby == null)
-                    const Padding(
-                      padding: EdgeInsets.only(top: 40),
-                      child: Center(child: CircularProgressIndicator()),
-                    )
-                  else if (_nearby == null)
-                    SectionCard(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Near-me view waiting on location',
-                            style: Theme.of(context).textTheme.titleLarge
-                                ?.copyWith(fontWeight: FontWeight.w700),
-                          ),
-                          const SizedBox(height: 10),
-                          Text(
-                            'Tracked routes above still update live even if near-me location is off.',
-                            style: Theme.of(context).textTheme.bodyLarge,
-                          ),
-                        ],
-                      ),
-                    )
-                  else if (_nearby!.nearbyStops.isEmpty)
-                    SectionCard(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'No nearby stops inside ${_radiusMeters}m',
-                            style: Theme.of(context).textTheme.titleLarge
-                                ?.copyWith(fontWeight: FontWeight.w700),
-                          ),
-                          const SizedBox(height: 10),
-                          Text(
-                            'Try wider radius. Search stays there if you want a specific bus.',
-                            style: Theme.of(context).textTheme.bodyLarge,
-                          ),
-                          const SizedBox(height: 18),
-                          Wrap(
-                            spacing: 12,
-                            runSpacing: 12,
-                            children: [
-                              FilledButton(
-                                onPressed: () =>
-                                    _refresh(forceRadiusExpansion: true),
-                                child: const Text('Try 1500m'),
-                              ),
-                              OutlinedButton(
-                                onPressed: () => context.push('/search'),
-                                child: const Text('Open Search'),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    )
-                  else
-                    _NearbyStopsSection(
-                      liveStops: _stopsWithPrimary().toList(),
-                      announcedStops: _stopsWithAnnounced().toList(),
-                      now: _uiNow,
-                      referenceTime: _lastRefreshAt,
-                    ),
-                  const SizedBox(height: 18),
-                  if (_recentStops(bootstrapData).isNotEmpty)
-                    SectionCard(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Recent Stops',
-                            style: Theme.of(context).textTheme.titleLarge
-                                ?.copyWith(fontWeight: FontWeight.w700),
-                          ),
-                          const SizedBox(height: 14),
-                          ..._recentStops(bootstrapData).map(
-                            (stop) => ListTile(
-                              contentPadding: EdgeInsets.zero,
-                              title: Text(stop.name),
-                              subtitle: Text(
-                                stop.description.isEmpty
-                                    ? 'Saved stop'
-                                    : stop.description,
-                              ),
-                              trailing: const Icon(Icons.chevron_right_rounded),
-                              onTap: () => context.push('/stops/${stop.id}'),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF0D1B2A).withValues(alpha: 0.75),
+                          border: Border(
+                            top: BorderSide(
+                              color: Colors.white.withValues(alpha: 0.1),
+                              width: 1,
                             ),
                           ),
+                        ),
+                        child: RefreshIndicator(
+                          onRefresh: _refresh,
+                          displacement: 20,
+                          child: ListView(
+                            controller: scrollController,
+                            physics: const BouncingScrollPhysics(),
+                            padding: const EdgeInsets.fromLTRB(20, 0, 20, 60),
+                            children: [
+                              const _SheetHandle(),
+                              
+                              // Quick Status Hero
+                              _LiveEtaHero(
+                                locationStatus: _locationStatus ?? LocationStatus.available,
+                                radius: _radiusMeters,
+                                trackedCount: _trackedRoutes?.vehicleCount ?? 0,
+                                notificationLabel: _notificationSetup.label,
+                              ),
+                          
+                          if (_message != null) ...[
+                            const SizedBox(height: 18),
+                            SectionCard(
+                              child: Text(
+                                _message!,
+                                style: Theme.of(context).textTheme.bodyLarge,
+                              ),
+                            ),
+                          ],
+                          
+                          if (_nearby != null) ...[
+                            const SizedBox(height: 18),
+                            _AreaRoutesSection(
+                              items: areaRoutes,
+                              trackedByRouteId: trackedByRouteId,
+                              now: _uiNow,
+                              referenceTime: _lastRefreshAt,
+                            ),
+                          ],
+                          
+                          if (_watchStatuses.isNotEmpty) ...[
+                            const SizedBox(height: 18),
+                            _AreaAlertsSection(alerts: areaAlerts),
+                            const SizedBox(height: 18),
+                            _ComingSoonSection(
+                              items: comingSoon,
+                              notificationSetup: _notificationSetup,
+                              onEnableAlerts: _enablePhoneAlerts,
+                              enabledReminderMinutes: _enabledReminderMinutes,
+                              onToggleReminderMinute: _toggleReminderMinute,
+                              now: _uiNow,
+                              referenceTime: _lastRefreshAt,
+                            ),
+                            const SizedBox(height: 18),
+                            _WatchDetailsSection(
+                              statuses: _watchStatuses,
+                              now: _uiNow,
+                              referenceTime: _lastRefreshAt,
+                            ),
+                          ],
+                          
+                          if (_trackedRoutes != null || routeFocusMatches.isNotEmpty || stopFocusMatches.isNotEmpty) ...[
+                            const SizedBox(height: 18),
+                            _ExploreMoreSection(
+                              tracked: _trackedRoutes,
+                              routeMatches: routeFocusMatches,
+                              stopMatches: stopFocusMatches,
+                              location: _activeLocation,
+                            ),
+                          ],
+                          
+                          if (_isLoading && _nearby == null)
+                            const Padding(
+                              padding: EdgeInsets.only(top: 40),
+                              child: Center(child: CircularProgressIndicator()),
+                            )
+                          else if (_nearby == null)
+                             const _LocationWaitCard(),
+
+                          if (_nearby != null && _nearby!.nearbyStops.isEmpty) ...[
+                             const SizedBox(height: 18),
+                             SectionCard(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'No nearby stops inside ${_radiusMeters}m',
+                                    style: Theme.of(context).textTheme.titleLarge
+                                        ?.copyWith(fontWeight: FontWeight.w700),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Text(
+                                    'Try wider radius. Search stays there if you want a specific bus.',
+                                    style: Theme.of(context).textTheme.bodyLarge,
+                                  ),
+                                  const SizedBox(height: 18),
+                                  Wrap(
+                                    spacing: 12,
+                                    runSpacing: 12,
+                                    children: [
+                                      FilledButton(
+                                        onPressed: () =>
+                                            _refresh(forceRadiusExpansion: true),
+                                        child: const Text('Try 1500m'),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+
+                          if (_nearby != null && _nearby!.nearbyStops.isNotEmpty) ...[
+                            const SizedBox(height: 18),
+                            _NearbyStopsSection(
+                              liveStops: _stopsWithPrimary().toList(),
+                              announcedStops: _stopsWithAnnounced().toList(),
+                              now: _uiNow,
+                              referenceTime: _lastRefreshAt,
+                            ),
+                          ],
+
+                          if (_recentStops(bootstrapData).isNotEmpty) ...[
+                            const SizedBox(height: 18),
+                            SectionCard(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Recent Stops',
+                                    style: Theme.of(context).textTheme.titleLarge
+                                        ?.copyWith(fontWeight: FontWeight.w700),
+                                  ),
+                                  const SizedBox(height: 14),
+                                  ..._recentStops(bootstrapData).map(
+                                    (stop) => ListTile(
+                                      contentPadding: EdgeInsets.zero,
+                                      title: Text(stop.name),
+                                      subtitle: Text(
+                                        stop.description.isEmpty
+                                            ? 'Saved stop'
+                                            : stop.description,
+                                      ),
+                                      trailing: const Icon(Icons.chevron_right_rounded),
+                                      onTap: () => context.push('/stops/${stop.id}'),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),
-                ],
+                  ),
+                ),
+              );
+                },
               ),
-            );
-          },
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, _) => Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Text(error.toString(), textAlign: TextAlign.center),
-            ),
-          ),
+            ],
+          );
+        },
+        loading: () => const AppBackground(
+          child: Center(child: CircularProgressIndicator()),
+        ),
+        error: (error, _) => AppBackground(
+          child: Center(child: Text('Error: $error')),
         ),
       ),
     );
@@ -2129,7 +2085,7 @@ class _LiveMapPanelState extends State<_LiveMapPanel>
     if (vehicle.lastSeenSeconds != null) {
       parts.add('seen ${vehicle.lastSeenSeconds}s ago');
     }
-    return parts.isEmpty ? vehicle.statusText : parts.join(' • ');
+    return parts.isEmpty ? vehicle.statusText : parts.join(' â€¢ ');
   }
 
   // ignore: unused_element
@@ -2140,7 +2096,7 @@ class _LiveMapPanelState extends State<_LiveMapPanel>
 
     if (user != null && dist != null) {
       if (rel == _BusUserRelative.passed) {
-        parts.add('Passed you — moving away (opposite direction)');
+        parts.add('Passed you â€” moving away (opposite direction)');
       } else if (rel == _BusUserRelative.approaching) {
         final eta = _estimateSecondsToReachUser(
           distanceMeters: dist,
@@ -2372,12 +2328,12 @@ class _LiveMapPanelState extends State<_LiveMapPanel>
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '${tracked.route.routeName} • serves ${tracked.stop.name}',
+                    '${tracked.route.routeName} â€¢ serves ${tracked.stop.name}',
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '${_formatDistanceLabel(tracked.stopDistanceMeters)} away • $movingLabel • ${_liveVehicleMeta(tracked.vehicle, user: widget.location)}',
+                    '${_formatDistanceLabel(tracked.stopDistanceMeters)} away â€¢ $movingLabel â€¢ ${_liveVehicleMeta(tracked.vehicle, user: widget.location)}',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: rel == _BusUserRelative.passed
                           ? const Color(0xFF7A1F1F)
@@ -2436,7 +2392,7 @@ class _LiveMapPanelState extends State<_LiveMapPanel>
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    'Closest stop ${item.stop.name} • ${_formatDistanceLabel(item.stopDistanceMeters)} away',
+                    'Closest stop ${item.stop.name} â€¢ ${_formatDistanceLabel(item.stopDistanceMeters)} away',
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
                   const SizedBox(height: 4),
@@ -2737,16 +2693,12 @@ class _LiveMapPanelState extends State<_LiveMapPanel>
         ? _busRelativeToUser(selectedVehicle, location)
         : _BusUserRelative.unknown;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Stack(
       children: [
-        SizedBox(
-          height: selectedVehicle != null ? 430 : 400,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(20),
-            child: Stack(
-              children: [
-                FlutterMap(
+        Positioned.fill(
+          child: Stack(
+            children: [
+              FlutterMap(
                   mapController: _mapController,
                   options: MapOptions(
                     initialCenter: _center(),
@@ -2776,7 +2728,7 @@ class _LiveMapPanelState extends State<_LiveMapPanel>
                   children: [
                     TileLayer(
                       urlTemplate:
-                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                          'https://cartodb-basemaps-a.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png',
                       userAgentPackageName: 'barbados_bus_demo',
                     ),
                     if (filteredMapVehicles.isNotEmpty)
@@ -2928,296 +2880,6 @@ class _LiveMapPanelState extends State<_LiveMapPanel>
               ],
             ),
           ),
-        ),
-        const SizedBox(height: 14),
-        if (_selectedFilter == _SurfaceStatusFilter.announced)
-          _scheduledAreaRoutes.isEmpty
-              ? Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      nearMeStatusLine,
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'These are schedule-only routes near your location. Open one to check the corridor and stops.',
-                      style: Theme.of(context).textTheme.bodyLarge,
-                    ),
-                  ],
-                )
-              : Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Scheduled Around You',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      'These routes are near your area but not tied to live telemetry yet.',
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                    const SizedBox(height: 10),
-                    ..._scheduledAreaRoutes
-                        .take(4)
-                        .map(
-                          (item) => Padding(
-                            padding: const EdgeInsets.only(bottom: 10),
-                            child: _announcedRouteQuickCard(context, item),
-                          ),
-                        ),
-                  ],
-                )
-        else if (filteredNearbyVehicles.isEmpty)
-          filteredExtraTrackedVehicles.isEmpty
-              ? Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      nearMeStatusLine,
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'No live buses are close enough right now. Pull to refresh or keep map open.',
-                      style: Theme.of(context).textTheme.bodyLarge,
-                    ),
-                  ],
-                )
-              : Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Tracked On Your Routes Right Now',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      nearMeStatusLine,
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                    const SizedBox(height: 10),
-                    ...filteredExtraTrackedVehicles
-                        .take(4)
-                        .map(
-                          (tracked) => Padding(
-                            padding: const EdgeInsets.only(bottom: 10),
-                            child: _trackedRouteQuickCard(context, tracked),
-                          ),
-                        ),
-                  ],
-                )
-        else if (selectedVehicle != null)
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: focusUserRel == _BusUserRelative.passed
-                  ? const Color(0xFF9B2E2E).withValues(alpha: 0.12)
-                  : const Color(0xFFF8FBFB),
-              borderRadius: BorderRadius.circular(18),
-              border: focusUserRel == _BusUserRelative.passed
-                  ? Border.all(color: const Color(0x669B2E2E), width: 1.5)
-                  : Border.all(color: const Color(0x11000000)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Focused Bus',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    RoutePill(
-                      label: selectedVehicle.routeNumber.isEmpty
-                          ? 'Bus'
-                          : selectedVehicle.routeNumber,
-                    ),
-                    if (focusUserRel == _BusUserRelative.passed)
-                      const ToneChip(
-                        label: 'Passed you?',
-                        color: Color(0xFF9B2E2E),
-                      )
-                    else
-                      ConfidenceChip(
-                        state: selectedVehicle.confidenceState,
-                        label: selectedVehicle.statusText,
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  _vehicleTitle(selectedVehicle),
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w800),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  _liveVehicleMeta(selectedVehicle, user: widget.location),
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: focusUserRel == _BusUserRelative.passed
-                        ? const Color(0xFF7A1F1F)
-                        : null,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'GPS ${_coordinateLabel(selectedVehicle)} | live point on map',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-                const SizedBox(height: 14),
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 12,
-                  children: [
-                    FilledButton.icon(
-                      onPressed: () => _focusVehicle(selectedVehicle),
-                      icon: const Icon(Icons.person_pin_circle_outlined),
-                      label: const Text('Fit you + bus'),
-                    ),
-                    OutlinedButton.icon(
-                      onPressed:
-                          _followSelectedVehicle ? null : _startFollowSelectedBus,
-                      icon: const Icon(Icons.directions_bus_filled_outlined),
-                      label: Text(
-                        _followSelectedVehicle
-                            ? 'Following bus (use Fit to see both)'
-                            : 'Follow bus only',
-                      ),
-                    ),
-                    OutlinedButton.icon(
-                      onPressed: _clearFocus,
-                      icon: const Icon(Icons.map_rounded),
-                      label: const Text('Back To Area'),
-                    ),
-                  ],
-                ),
-                if (otherVehicles.isNotEmpty) ...[
-                  const SizedBox(height: 16),
-                  Text(
-                    'Other Nearby Buses',
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  ...otherVehicles
-                      .take(3)
-                      .map(
-                        (vehicle) => Padding(
-                          padding: const EdgeInsets.only(bottom: 10),
-                          child: _vehicleQuickCard(context, vehicle),
-                        ),
-                      ),
-                ],
-                if (otherTrackedRouteVehicles.isNotEmpty) ...[
-                  const SizedBox(height: 16),
-                  Text(
-                    'Also Tracked On Your Routes',
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  ...otherTrackedRouteVehicles
-                      .take(3)
-                      .map(
-                        (tracked) => Padding(
-                          padding: const EdgeInsets.only(bottom: 10),
-                          child: _trackedRouteQuickCard(context, tracked),
-                        ),
-                      ),
-                ],
-              ],
-            ),
-          )
-        else
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                _selectedFilter == _SurfaceStatusFilter.all
-                    ? 'Buses Near You Right Now'
-                    : '${_surfaceStatusFilterLabel(_selectedFilter)} Buses Near You',
-                style: Theme.of(
-                  context,
-                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                'Closest live buses show here. Click one to follow it. Route Radar and island view below show the other corridors too.',
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-              const SizedBox(height: 10),
-              ...filteredNearbyVehicles
-                  .take(4)
-                  .map(
-                    (vehicle) => Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: _vehicleQuickCard(context, vehicle),
-                    ),
-                  ),
-              if (filteredExtraTrackedVehicles.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                Text(
-                  'Also Tracked On Your Routes',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  'These are live now even if they are not inside your close circle yet.',
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-                const SizedBox(height: 10),
-                ...filteredExtraTrackedVehicles
-                    .take(3)
-                    .map(
-                      (tracked) => Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: _trackedRouteQuickCard(context, tracked),
-                      ),
-                    ),
-              ],
-              if (_selectedFilter == _SurfaceStatusFilter.all &&
-                  _scheduledAreaRoutes.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                Text(
-                  'Scheduled Around You',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
-                ),
-                const SizedBox(height: 10),
-                ..._scheduledAreaRoutes
-                    .take(3)
-                    .map(
-                      (item) => Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: _announcedRouteQuickCard(context, item),
-                      ),
-                    ),
-              ],
-            ],
-          ),
       ],
     );
   }
@@ -3274,11 +2936,11 @@ class _ComingSoonSection extends StatelessWidget {
   String _statusLine(Arrival arrival) {
     switch (arrival.confidenceState) {
       case 'tracking':
-        return 'Tracking • ${formatArrivalEtaForDisplay(arrival)}';
+        return 'Tracking â€¢ ${formatArrivalEtaForDisplay(arrival)}';
       case 'at_terminal':
-        return 'At terminal • scheduled ${arrival.scheduledLabel}';
+        return 'At terminal â€¢ scheduled ${arrival.scheduledLabel}';
       default:
-        return 'Announced • after ${arrival.scheduledLabel}';
+        return 'Announced â€¢ after ${arrival.scheduledLabel}';
     }
   }
 
@@ -3774,7 +3436,7 @@ class _WatchStopSection extends StatelessWidget {
         ? 'Near stop'
         : '${vehicle.distanceMeters}m from stop';
     final motionText = vehicle.moving ? 'moving now' : vehicle.statusText;
-    return '$distanceText • $motionText';
+    return '$distanceText â€¢ $motionText';
   }
 
   @override
@@ -3872,13 +3534,13 @@ class _WatchStopSection extends StatelessWidget {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          '${lastPassEvent.routeNumber ?? 'Bus'} • ${_eventDirectionLine(lastPassEvent)}',
+                          '${lastPassEvent.routeNumber ?? 'Bus'} â€¢ ${_eventDirectionLine(lastPassEvent)}',
                           style: Theme.of(context).textTheme.bodyLarge
                               ?.copyWith(fontWeight: FontWeight.w700),
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          '${_eventTimeLabel(context, lastPassEvent)}${lastPassEvent.currentStopDistanceM != null ? ' • ${lastPassEvent.currentStopDistanceM}m from stop' : ''}',
+                          '${_eventTimeLabel(context, lastPassEvent)}${lastPassEvent.currentStopDistanceM != null ? ' â€¢ ${lastPassEvent.currentStopDistanceM}m from stop' : ''}',
                           style: Theme.of(context).textTheme.bodyMedium,
                         ),
                         const SizedBox(height: 6),
@@ -3970,13 +3632,13 @@ class _WatchStopSection extends StatelessWidget {
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
-                                  'ETA ${formatArrivalEtaForDisplay(arrival)} • ${_watchTier(arrival)}',
+                                  'ETA ${formatArrivalEtaForDisplay(arrival)} â€¢ ${_watchTier(arrival)}',
                                   style: Theme.of(context).textTheme.bodyMedium,
                                 ),
                                 if (arrival.rawEtaLabel != null ||
                                     (arrival.predictionBiasSeconds ?? 0) != 0)
                                   Text(
-                                    'Raw ${arrival.rawEtaLabel ?? arrival.etaLabel}${(arrival.predictionBiasSeconds ?? 0) != 0 ? ' • bias ${arrival.predictionBiasSeconds! > 0 ? '+' : ''}${arrival.predictionBiasSeconds}s' : ''}',
+                                    'Raw ${arrival.rawEtaLabel ?? arrival.etaLabel}${(arrival.predictionBiasSeconds ?? 0) != 0 ? ' â€¢ bias ${arrival.predictionBiasSeconds! > 0 ? '+' : ''}${arrival.predictionBiasSeconds}s' : ''}',
                                     style: Theme.of(
                                       context,
                                     ).textTheme.bodySmall,
@@ -4167,18 +3829,18 @@ class _AreaRoutesSection extends StatelessWidget {
   }
 
   /// Same corridor names (e.g. Lodge School) often appear on multiple official
-  /// route numbers with different departure times—not a data duplicate.
+  /// route numbers with different departure timesâ€”not a data duplicate.
   String _serviceScheduleLine(Arrival arrival) {
     final liveLike = arrival.confidenceState == 'tracking' ||
         arrival.confidenceState == 'at_terminal';
     if (liveLike) {
-      return 'Service ${arrival.routeNumber} · ETA ${arrival.etaLabel}';
+      return 'Service ${arrival.routeNumber} Â· ETA ${arrival.etaLabel}';
     }
-    return 'Service ${arrival.routeNumber} · Scheduled ${arrival.scheduledLabel}';
+    return 'Service ${arrival.routeNumber} Â· Scheduled ${arrival.scheduledLabel}';
   }
 
   String _stopLine(_AreaRouteMatch item) {
-    return 'Nearest stop on this route • ${item.stop.name} • ${_formatDistanceLabel(item.stopDistanceMeters)} from you';
+    return 'Nearest stop on this route â€¢ ${item.stop.name} â€¢ ${_formatDistanceLabel(item.stopDistanceMeters)} from you';
   }
 
   static const int _busNearUserThresholdM = 380;
@@ -4227,22 +3889,7 @@ class _AreaRoutesSection extends StatelessWidget {
     return item.vehicle?.moving == true ? 1 : 0;
   }
 
-  String _delayLabel(Arrival arrival) {
-    final delaySeconds = arrival.delaySeconds;
-    if (delaySeconds.abs() < 60) {
-      return 'On time';
-    }
-    final hms = formatDurationHms(delaySeconds.abs());
-    return delaySeconds > 0 ? 'Late $hms' : 'Early $hms';
-  }
 
-  Color _delayColor(Arrival arrival) {
-    final delaySeconds = arrival.delaySeconds;
-    if (delaySeconds.abs() < 60) {
-      return const Color(0xFF0B7A75);
-    }
-    return delaySeconds > 0 ? const Color(0xFF9B4D3D) : const Color(0xFF355C7D);
-  }
 
   String _routeStatusLine(_AreaRouteMatch item) {
     final leadVehicle = _leadVehicle(item);
@@ -4311,7 +3958,7 @@ class _AreaRoutesSection extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            '“Bus near your pin” uses GPS distance to the live vehicle. “Nearest stop on route” means a stop on that line is close—the bus may still be on another road. Rows that look alike but show different route numbers (e.g. SCH 115 vs SCH 125B) are separate timetabled runs on the same corridor, not duplicates.',
+            'â€œBus near your pinâ€ uses GPS distance to the live vehicle. â€œNearest stop on routeâ€ means a stop on that line is closeâ€”the bus may still be on another road. Rows that look alike but show different route numbers (e.g. SCH 115 vs SCH 125B) are separate timetabled runs on the same corridor, not duplicates.',
             style: Theme.of(context).textTheme.bodyLarge,
           ),
           const SizedBox(height: 14),
@@ -4321,143 +3968,132 @@ class _AreaRoutesSection extends StatelessWidget {
               style: Theme.of(context).textTheme.bodyLarge,
             )
           else
-            ...rankedItems
-                .take(10)
-                .map(
-                  (item) {
-                    final busNearLine = _busNearUserLine(item);
-                    return Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(18),
-                      onTap: () => context.push(
-                        _routePath(
-                          item.arrival.routeId,
-                          vehicleUid: _leadVehicle(item)?.uid,
+            SizedBox(
+              height: 240, // Fixed height for horizontal cards
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: rankedItems.length > 10 ? 10 : rankedItems.length,
+                separatorBuilder: (context, index) => const SizedBox(width: 16),
+                itemBuilder: (context, index) {
+                  final item = rankedItems[index];
+                  final busNearLine = _busNearUserLine(item);
+                  return InkWell(
+                    borderRadius: BorderRadius.circular(20),
+                    onTap: () => context.push(
+                      _routePath(
+                        item.arrival.routeId,
+                        vehicleUid: _leadVehicle(item)?.uid,
+                      ),
+                    ),
+                    child: Container(
+                      width: MediaQuery.of(context).size.width * 0.8, // 80% width for peeking
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: _effectiveState(item) == 'tracking' ||
+                                _effectiveState(item) == 'at_terminal'
+                            ? const Color(0xFF002845) // Slightly brighter navy for live routes
+                            : const Color(0xFF001F3F), // Dark navy for scheduled routes
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: const Color(0xFF00E5FF).withValues(alpha: 0.1),
+                          width: 1,
                         ),
                       ),
-                      child: Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color:
-                              _effectiveState(item) == 'tracking' ||
-                                  _effectiveState(item) == 'at_terminal'
-                              ? const Color(0xFFF2FAF8)
-                              : const Color(0xFFF8FBFB),
-                          borderRadius: BorderRadius.circular(18),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                RoutePill(label: item.arrival.routeNumber),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        _directionLine(item.arrival),
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .bodyLarge
-                                            ?.copyWith(
-                                              fontWeight: FontWeight.w800,
-                                            ),
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        item.arrival.routeName,
-                                        style: Theme.of(
-                                          context,
-                                        ).textTheme.bodyMedium,
-                                      ),
-                                      if (item.arrival.direction
-                                          .trim()
-                                          .isNotEmpty) ...[
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          item.arrival.direction,
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .bodySmall,
-                                        ),
-                                      ],
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        _serviceScheduleLine(item.arrival),
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .titleSmall
-                                            ?.copyWith(
-                                              fontWeight: FontWeight.w800,
-                                              color: const Color(0xFF0B4A47),
-                                            ),
-                                      ),
-                                    ],
-                                  ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              RoutePill(label: item.arrival.routeNumber),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      _directionLine(item.arrival),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodyLarge
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      item.arrival.routeName,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: Theme.of(context).textTheme.bodyMedium,
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      _serviceScheduleLine(item.arrival),
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleSmall
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.w800,
+                                            color: const Color(0xFF00E5FF),
+                                          ),
+                                    ),
+                                  ],
                                 ),
-                                const SizedBox(width: 10),
-                                ConfidenceChip(
-                                  state: _effectiveState(item),
-                                  label: _effectiveLabel(item),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 10),
-                            Wrap(
-                              spacing: 10,
-                              runSpacing: 10,
+                              ),
+                              const SizedBox(width: 10),
+                              ConfidenceChip(
+                                state: _effectiveState(item),
+                                label: _effectiveLabel(item),
+                              ),
+                            ],
+                          ),
+                          const Spacer(),
+                          SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: Row(
                               children: [
-                                if (_trackedCount(item) > 0)
+                                if (_trackedCount(item) > 0) ...[
                                   ToneChip(
                                     label: '${_trackedCount(item)} tracked now',
-                                    color: const Color(0xFF0B7A75),
+                                    color: const Color(0xFF00E5FF),
                                   ),
-                                if (_movingCount(item) > 0)
-                                  ToneChip(
-                                    label: '${_movingCount(item)} moving now',
-                                    color: const Color(0xFF355C7D),
-                                  ),
-                                if (busNearLine != null)
+                                  const SizedBox(width: 8),
+                                ],
+                                if (busNearLine != null) ...[
                                   ToneChip(
                                     label: busNearLine,
-                                    color: const Color(0xFF0B7A75),
+                                    color: const Color(0xFF00E5FF),
                                   ),
+                                  const SizedBox(width: 8),
+                                ],
                                 ToneChip(
                                   label: _stopLine(item),
-                                  color: busNearLine != null
-                                      ? const Color(0xFF6B7F8C)
-                                      : const Color(0xFF355C7D),
+                                  color: Colors.white.withValues(alpha: 0.15),
                                 ),
-                                ToneChip(
-                                  label: _delayLabel(item.arrival),
-                                  color: _delayColor(item.arrival),
-                                ),
-                                if (item.arrival.liveTracking ||
-                                    _leadVehicle(item) != null)
-                                  const ToneChip(
-                                    label: 'Tap for map',
-                                    color: Color(0xFF0B7A75),
-                                  ),
                               ],
                             ),
-                            const SizedBox(height: 10),
-                            Text(
-                              _routeStatusLine(item),
-                              style: Theme.of(context).textTheme.bodyLarge
-                                  ?.copyWith(fontWeight: FontWeight.w700),
-                            ),
-                          ],
-                        ),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            _routeStatusLine(item),
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white,
+                                ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
                       ),
                     ),
                   );
-                  },
-                ),
+                },
+              ),
+            ),
         ],
       ),
     );
@@ -4771,7 +4407,7 @@ class _FocusSection extends StatelessWidget {
                       label: Text(
                         match.distanceMeters == null
                             ? match.label
-                            : '${match.label} • ${_formatDistanceLabel(match.distanceMeters!)}',
+                            : '${match.label} â€¢ ${_formatDistanceLabel(match.distanceMeters!)}',
                       ),
                       avatar: const Icon(Icons.location_on_outlined, size: 18),
                       onPressed: () => context.push('/stops/${match.stop.id}'),
@@ -4801,7 +4437,7 @@ class _FocusRouteCard extends StatelessWidget {
           ? 'near ${option.closestStop!.stop.name}'
           : 'closest stop ${option.closestStop!.stop.name}';
       parts.add(
-        '$stopLabel • ${_formatDistanceLabel(option.closestStop!.distanceMeters)}',
+        '$stopLabel â€¢ ${_formatDistanceLabel(option.closestStop!.distanceMeters)}',
       );
     } else {
       parts.add('${option.route.from} -> ${option.route.to}');
@@ -4916,7 +4552,7 @@ class _FocusRouteCard extends StatelessWidget {
                                     option.route.to.trim().isNotEmpty) ...[
                                   const SizedBox(height: 2),
                                   Text(
-                                    '${option.route.from} → ${option.route.to}',
+                                    '${option.route.from} â†’ ${option.route.to}',
                                     style:
                                         Theme.of(context).textTheme.bodySmall,
                                   ),
@@ -5035,7 +4671,7 @@ class _StopArrivalCard extends StatelessWidget {
       case 'tracking':
         return 'ETA ${formatArrivalEtaForDisplay(arrival)}';
       case 'at_terminal':
-        return 'At terminal • scheduled ${arrival.scheduledLabel}';
+        return 'At terminal â€¢ scheduled ${arrival.scheduledLabel}';
       case 'stale':
         return arrival.statusText;
       default:
@@ -5247,12 +4883,135 @@ class _StopFocusMatch {
   final int? distanceMeters;
 }
 
-bool _routeMatchesFocus(RouteSummary route, _FocusQuery focus) {
-  final haystack =
-      '${route.routeNumber} ${route.routeName} ${route.from} ${route.to}'
-          .toLowerCase();
-  if (focus.keywords.isEmpty) {
-    return false;
+class _LiveEtaHero extends StatelessWidget {
+  const _LiveEtaHero({
+    required this.locationStatus,
+    required this.radius,
+    required this.trackedCount,
+    required this.notificationLabel,
+  });
+
+  final LocationStatus locationStatus;
+  final int radius;
+  final int trackedCount;
+  final String notificationLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.only(top: 14, bottom: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 10,
+                height: 10,
+                decoration: const BoxDecoration(
+                  color: Color(0xFF00E5FF),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(color: Color(0x6600E5FF), blurRadius: 8),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'LIVE ETA',
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: const Color(0xFF00E5FF),
+                  letterSpacing: 2,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Transit Pulse',
+            style: Theme.of(context).textTheme.displayMedium,
+          ),
+          const SizedBox(height: 16),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                ToneChip(
+                  label: 'Radius ${radius}m',
+                  color: const Color(0xFF00E5FF),
+                ),
+                const SizedBox(width: 8),
+                ToneChip(
+                  label: locationStatus == LocationStatus.available
+                      ? 'Local live'
+                      : 'GPS standby',
+                  color: locationStatus == LocationStatus.available
+                      ? const Color(0xFF00E5FF)
+                      : const Color(0xFFB45309),
+                ),
+                const SizedBox(width: 8),
+                ToneChip(
+                  label: '$trackedCount live islandwide',
+                  color: Colors.white,
+                ),
+                const SizedBox(width: 8),
+                ToneChip(
+                  label: notificationLabel,
+                  color: const Color(0xFF00E5FF),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
-  return focus.keywords.any(haystack.contains);
 }
+
+class _LocationWaitCard extends StatelessWidget {
+  const _LocationWaitCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return SectionCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Syncing coordinates...',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'We are finding the closest stops to your position. Tracked routes above remain live regardless of GPS status.',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Colors.white.withValues(alpha: 0.6),
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SheetHandle extends StatelessWidget {
+  const _SheetHandle();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 12),
+        width: 36,
+        height: 5,
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.20),
+          borderRadius: BorderRadius.circular(999),
+        ),
+      ),
+    );
+  }
+}
+
+

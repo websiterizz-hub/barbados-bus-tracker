@@ -67,20 +67,33 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Find routes, stops, and terminals',
+                        'Search Transit',
                         style: Theme.of(context).textTheme.headlineSmall
-                            ?.copyWith(fontWeight: FontWeight.w700),
+                            ?.copyWith(fontWeight: FontWeight.w800),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Find any route, stop, or point of interest across the island.',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: const Color(0xFF000613).withValues(alpha: 0.6),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
                       TextField(
                         controller: _controller,
                         onChanged: (_) => setState(() {}),
-                        decoration: const InputDecoration(
-                          prefixIcon: Icon(Icons.search_rounded),
-                          hintText:
-                              'Try Sam Lord\'s, College Savannah, Bridgetown, Warrens, 54...',
+                        decoration: InputDecoration(
+                          prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF006875)),
+                          hintText: 'Try Sam Lord\'s, Warrens, Route 54...',
+                          filled: true,
+                          fillColor: const Color(0xFFF8F9FA),
                           border: OutlineInputBorder(
-                            borderRadius: BorderRadius.all(Radius.circular(20)),
+                            borderRadius: const BorderRadius.all(Radius.circular(20)),
+                            borderSide: BorderSide(color: const Color(0xFF000613).withValues(alpha: 0.08)),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: const BorderRadius.all(Radius.circular(20)),
+                            borderSide: BorderSide(color: const Color(0xFF000613).withValues(alpha: 0.08)),
                           ),
                         ),
                       ),
