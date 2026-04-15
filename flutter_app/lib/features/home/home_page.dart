@@ -536,6 +536,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   Timer? _uiTicker;
   bool _isLoading = true;
   String? _message;
+  String? _debugLog;
   NearbyResponse? _nearby;
   TrackedRoutesResponse? _trackedRoutes;
   List<WatchStopStatus> _watchStatuses = const [];
@@ -637,11 +638,14 @@ class _HomePageState extends ConsumerState<HomePage> {
 
     if (lookup.status == LocationStatus.available && lookup.position != null) {
       _lastKnownLocation = lookup.position;
+      _debugLog = null;
       await storage.saveLastLocation(lookup.position!);
     } else if (_lastKnownLocation != null) {
       message = 'Using last saved area because live location is unavailable.';
+      _debugLog = lookup.message;
     } else {
       message = lookup.message ?? 'Unable to get your location right now.';
+      _debugLog = lookup.message;
     }
 
     final radiusMeters = forceRadiusExpansion ? 1500 : _radiusMeters;
@@ -1648,8 +1652,53 @@ class _HomePageState extends ConsumerState<HomePage> {
                   referenceTime: _lastRefreshAt,
                   refreshHintSeconds: _nearby?.refreshHintSeconds ?? 5,
                   onLocate: _refresh,
+                  isLoading: _isLoading,
                 ),
               ),
+
+              // ðŸš¨ Diagnostic Banner
+              if (_debugLog != null)
+                Positioned(
+                  top: 80,
+                  left: 16,
+                  right: 16,
+                  child: SafeArea(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFC0392B).withValues(alpha: 0.95),
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.3),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.error_outline, color: Colors.white, size: 20),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'GPS DIAGNOSTIC: $_debugLog',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close, color: Colors.white, size: 20),
+                            onPressed: () => setState(() => _debugLog = null),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
 
               // ðŸ›°ï¸ Layer 1: Floating Header Row
               Positioned(
@@ -1895,6 +1944,7 @@ class _LiveMapPanel extends StatefulWidget {
     required this.referenceTime,
     required this.refreshHintSeconds,
     required this.onLocate,
+    required this.isLoading,
   });
 
   final SavedLocation? location;
@@ -1907,6 +1957,7 @@ class _LiveMapPanel extends StatefulWidget {
   final DateTime? referenceTime;
   final int refreshHintSeconds;
   final Future<void> Function() onLocate;
+  final bool isLoading;
 
   @override
   State<_LiveMapPanel> createState() => _LiveMapPanelState();
@@ -2585,9 +2636,24 @@ class _LiveMapPanelState extends State<_LiveMapPanel>
                         ),
                       ),
                       const SizedBox(width: 12),
-                      IconButton.filledTonal(
-                        onPressed: _refreshAndReset,
-                        icon: const Icon(Icons.gps_fixed_rounded),
+                      Column(
+                        children: [
+                          FilledButton.icon(
+                            style: FilledButton.styleFrom(
+                              backgroundColor: const Color(0xFF0D1B2A),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                            ),
+                            onPressed: widget.isLoading ? null : _refreshAndReset,
+                            icon: widget.isLoading 
+                              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                              : const Icon(Icons.gps_fixed_rounded),
+                            label: const Text('Find Me'),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -4696,11 +4762,11 @@ class _LiveEtaHero extends StatelessWidget {
   }
 }
 
-class _LocationWaitCard extends StatelessWidget {
-  const _LocationWaitCard();
+class _LocationWaitCard extends ConsumerWidget {
+  const _LocationWaitCard({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return SectionCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -4715,6 +4781,24 @@ class _LocationWaitCard extends StatelessWidget {
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: Colors.white.withValues(alpha: 0.6),
                 ),
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: () => ref.read(locationServiceProvider).getCurrentLocation(), 
+              icon: const Icon(Icons.my_location),
+              label: const Text('RE-SYNC MY LOCATION'),
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                backgroundColor: const Color(0xFF00E5FF).withValues(alpha: 0.1),
+                foregroundColor: const Color(0xFF00E5FF),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  side: const BorderSide(color: Color(0xFF00E5FF), width: 1),
+                ),
+              ),
+            ),
           ),
         ],
       ),

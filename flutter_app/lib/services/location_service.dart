@@ -33,21 +33,23 @@ class GeolocatorLocationService implements LocationService {
   Future<LocationLookup> _getCurrentLocationWeb() async {
     try {
       // Step 1: Attempt High Accuracy
-      var position = await _getWebPosition(highAccuracy: true);
+      var result = await _getWebPosition(highAccuracy: true);
       
       // Step 2: Fallback to Low Accuracy if high fails or is unavailable
-      position ??= await _getWebPosition(highAccuracy: false);
+      if (result.position == null) {
+        result = await _getWebPosition(highAccuracy: false);
+      }
 
-      if (position != null) {
+      if (result.position != null) {
         return LocationLookup(
           status: LocationStatus.available,
-          position: position,
+          position: result.position,
         );
       }
 
-      return const LocationLookup(
+      return LocationLookup(
         status: LocationStatus.permissionDenied,
-        message: 'Location access denied or unavailable. Please check browser settings.',
+        message: result.error ?? 'Location access denied or unavailable. Please check browser settings.',
       );
     } catch (e) {
       return LocationLookup(
@@ -58,8 +60,9 @@ class GeolocatorLocationService implements LocationService {
   }
 
   /// Helper to call navigator.geolocation via JS interop
-  Future<SavedLocation?> _getWebPosition({required bool highAccuracy}) async {
-    final completer = Completer<SavedLocation?>();
+  /// Returns a record with the position and potential error string
+  Future<({SavedLocation? position, String? error})> _getWebPosition({required bool highAccuracy}) async {
+    final completer = Completer<({SavedLocation? position, String? error})>();
     final timestamp = DateTime.now().millisecondsSinceEpoch;
     final cbOk = 'geoOk_$timestamp';
     final cbErr = 'geoErr_$timestamp';
@@ -69,9 +72,12 @@ class GeolocatorLocationService implements LocationService {
       cbOk.toJS,
       ((JSNumber lat, JSNumber lng) {
         if (!completer.isCompleted) {
-          completer.complete(SavedLocation(
-            lat: lat.toDartDouble,
-            lng: lng.toDartDouble,
+          completer.complete((
+            position: SavedLocation(
+              lat: lat.toDartDouble,
+              lng: lng.toDartDouble,
+            ),
+            error: null,
           ));
         }
       }).toJS,
@@ -80,7 +86,12 @@ class GeolocatorLocationService implements LocationService {
     globalContext.setProperty(
       cbErr.toJS,
       ((JSString err) {
-        if (!completer.isCompleted) completer.complete(null);
+        if (!completer.isCompleted) {
+          completer.complete((
+            position: null,
+            error: err.toDart,
+          ));
+        }
       }).toJS,
     );
 
@@ -92,7 +103,7 @@ class GeolocatorLocationService implements LocationService {
         'eval'.toJS,
         '''(function(){
           if (!navigator.geolocation) {
-            window["$cbErr"]("Not supported");
+            window["$cbErr"]("Geolocation is NOT supported by this browser.");
             return;
           }
           navigator.geolocation.getCurrentPosition(
@@ -102,7 +113,11 @@ class GeolocatorLocationService implements LocationService {
               delete window["$cbErr"];
             },
             function(err) {
-              window["$cbErr"](err.message || "denied");
+              var msg = "Unknown error";
+              if (err.code === 1) msg = "Permission denied (User said no)";
+              else if (err.code === 2) msg = "Position unavailable (No hardware/GPS)";
+              else if (err.code === 3) msg = "Timeout reached while finding you";
+              window["$cbErr"](msg + ": " + (err.message || ""));
               delete window["$cbOk"];
               delete window["$cbErr"];
             },
@@ -112,15 +127,18 @@ class GeolocatorLocationService implements LocationService {
             .toJS,
       );
     } catch (e) {
-      if (!completer.isCompleted) completer.complete(null);
+      if (!completer.isCompleted) {
+        completer.complete((position: null, error: 'JS Eval Error: ${e.toString()}'));
+      }
     }
 
     // Wait for JS callback or timeout
     return completer.future.timeout(
       const Duration(seconds: 10),
-      onTimeout: () => null,
+      onTimeout: () => (position: null, error: 'App timeout: Browser didn\'t respond in 10s.'),
     );
   }
+
 
   Future<LocationLookup> _getCurrentLocationNative() async {
     try {
