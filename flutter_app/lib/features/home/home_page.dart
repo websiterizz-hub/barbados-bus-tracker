@@ -620,7 +620,6 @@ class _HomePageState extends ConsumerState<HomePage> {
   Future<void> _refresh({
     bool silent = false,
     bool forceRadiusExpansion = false,
-    bool activePrompt = false,
   }) async {
     if (!silent && mounted) {
       setState(() {
@@ -631,7 +630,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     final api = ref.read(apiClientProvider);
     final locationService = ref.read(locationServiceProvider);
     final storage = await ref.read(storageProvider.future);
-    final lookup = await locationService.getCurrentLocation(forcePrompt: activePrompt);
+    final lookup = await locationService.getCurrentLocation();
 
     SavedLocation? targetLocation = lookup.position ?? _lastKnownLocation;
     String? message;
@@ -1648,7 +1647,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                   now: _uiNow,
                   referenceTime: _lastRefreshAt,
                   refreshHintSeconds: _nearby?.refreshHintSeconds ?? 5,
-                  onLocate: () => _refresh(activePrompt: true),
+                  onLocate: _refresh,
                 ),
               ),
 
