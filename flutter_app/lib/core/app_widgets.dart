@@ -1,7 +1,7 @@
-import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'dart:math' as math;
+
 
 /// Returns the specific color based on confidence state, aligned with the dark theme.
 Color confidenceColor(String state) {

@@ -620,6 +620,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   Future<void> _refresh({
     bool silent = false,
     bool forceRadiusExpansion = false,
+    bool activePrompt = false,
   }) async {
     if (!silent && mounted) {
       setState(() {
@@ -630,7 +631,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     final api = ref.read(apiClientProvider);
     final locationService = ref.read(locationServiceProvider);
     final storage = await ref.read(storageProvider.future);
-    final lookup = await locationService.getCurrentLocation();
+    final lookup = await locationService.getCurrentLocation(forcePrompt: activePrompt);
 
     SavedLocation? targetLocation = lookup.position ?? _lastKnownLocation;
     String? message;
@@ -847,14 +848,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     );
   }
 
-  Future<void> _fixLocationAccess() async {
-    final locationService = ref.read(locationServiceProvider);
-    if (_locationStatus == LocationStatus.serviceDisabled) {
-      await locationService.openLocationSettings();
-    } else {
-      await locationService.openAppSettings();
-    }
-  }
+
 
   Future<void> _enablePhoneAlerts() async {
     final setup = await ref
@@ -1654,7 +1648,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                   now: _uiNow,
                   referenceTime: _lastRefreshAt,
                   refreshHintSeconds: _nearby?.refreshHintSeconds ?? 5,
-                  onLocate: _refresh,
+                  onLocate: () => _refresh(activePrompt: true),
                 ),
               ),
 
@@ -2060,19 +2054,7 @@ class _LiveMapPanelState extends State<_LiveMapPanel>
     return direction;
   }
 
-  String _vehicleTitle(Vehicle vehicle) {
-    final destination = _destinationFromDirection(vehicle.routeDirection);
-    if (destination != null && destination.isNotEmpty) {
-      return 'Toward $destination';
-    }
-    if (vehicle.derivedRouteName != null &&
-        vehicle.derivedRouteName!.isNotEmpty) {
-      return vehicle.derivedRouteName!;
-    }
-    return vehicle.routeDirection.isEmpty
-        ? 'Tracked bus'
-        : vehicle.routeDirection;
-  }
+
 
   // ignore: unused_element
   String _vehicleMeta(Vehicle vehicle) {
@@ -2152,9 +2134,7 @@ class _LiveMapPanelState extends State<_LiveMapPanel>
     return LatLng(lat, lng);
   }
 
-  String _coordinateLabel(Vehicle vehicle) {
-    return '${vehicle.position.lat.toStringAsFixed(5)}, ${vehicle.position.lng.toStringAsFixed(5)}';
-  }
+
 
   int _filterCount(_SurfaceStatusFilter filter) {
     if (filter == _SurfaceStatusFilter.announced) {
@@ -2184,239 +2164,11 @@ class _LiveMapPanelState extends State<_LiveMapPanel>
     });
   }
 
-  Widget _vehicleQuickCard(BuildContext context, Vehicle vehicle) {
-    final user = widget.location;
-    final rel = _busRelativeToUser(vehicle, user);
-    final Color cardBg;
-    final BoxBorder? cardBorder;
-    switch (rel) {
-      case _BusUserRelative.passed:
-        cardBg = const Color(0xFFFF5252).withValues(alpha: 0.08);
-        cardBorder = Border.all(
-          color: const Color(0xFFFF5252).withValues(alpha: 0.2),
-          width: 1,
-        );
-        break;
-      case _BusUserRelative.approaching:
-        cardBg = const Color(0xFF00E5FF).withValues(alpha: 0.06);
-        cardBorder = Border.all(
-          color: const Color(0xFF00E5FF).withValues(alpha: 0.25),
-          width: 0.8,
-        );
-        break;
-      case _BusUserRelative.unknown:
-        cardBg = Colors.white.withValues(alpha: 0.03);
-        cardBorder = Border.all(
-          color: Colors.white.withValues(alpha: 0.05),
-          width: 0.5,
-        );
-        break;
-    }
 
-    return InkWell(
-      borderRadius: BorderRadius.circular(18),
-      onTap: () => _focusVehicle(vehicle),
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: cardBg,
-          borderRadius: BorderRadius.circular(18),
-          border: cardBorder,
-        ),
-        child: Row(
-          children: [
-            RoutePill(
-              label: vehicle.routeNumber.isEmpty ? 'Bus' : vehicle.routeNumber,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _vehicleTitle(vehicle),
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    _liveVehicleMeta(vehicle, user: user),
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: rel == _BusUserRelative.passed
-                          ? const Color(0xFFFF8A80)
-                          : rel == _BusUserRelative.approaching
-                              ? const Color(0xFF00E5FF)
-                              : Colors.white70,
-                      fontWeight: rel != _BusUserRelative.unknown ? FontWeight.w700 : null,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Click to track on map',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 10),
-            const Icon(Icons.gps_fixed_rounded, size: 18),
-            const SizedBox(width: 8),
-            if (rel == _BusUserRelative.passed)
-              const ToneChip(
-                label: 'Passed you?',
-                color: Color(0xFF9B2E2E),
-              )
-            else
-              ConfidenceChip(
-                state: vehicle.confidenceState,
-                label: vehicle.statusText,
-              ),
-          ],
-        ),
-      ),
-    );
-  }
 
-  Widget _trackedRouteQuickCard(
-    BuildContext context,
-    _TrackedAreaVehicle tracked,
-  ) {
-    final movingLabel = tracked.vehicle.moving ? 'moving now' : 'tracked now';
-    final rel = _busRelativeToUser(tracked.vehicle, widget.location);
-    final Color cardBg;
-    final BoxBorder? cardBorder;
-    switch (rel) {
-      case _BusUserRelative.passed:
-        cardBg = const Color(0xFF9B2E2E).withValues(alpha: 0.16);
-        cardBorder = Border.all(color: const Color(0x66C62828), width: 1.5);
-        break;
-      case _BusUserRelative.approaching:
-        cardBg =
-            confidenceColor(tracked.vehicle.confidenceState).withValues(alpha: 0.14);
-        cardBorder = Border.all(color: const Color(0x440B7A75), width: 1);
-        break;
-      case _BusUserRelative.unknown:
-        cardBg = confidenceColor(
-          tracked.vehicle.confidenceState,
-        ).withValues(alpha: 0.10);
-        cardBorder = null;
-        break;
-    }
-    return InkWell(
-      borderRadius: BorderRadius.circular(18),
-      onTap: () => _focusVehicle(tracked.vehicle),
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: cardBg,
-          borderRadius: BorderRadius.circular(18),
-          border: cardBorder,
-        ),
-        child: Row(
-          children: [
-            RoutePill(
-              label: tracked.route.routeNumber.isEmpty
-                  ? 'Bus'
-                  : tracked.route.routeNumber,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _vehicleTitle(tracked.vehicle),
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '${tracked.route.routeName} â€¢ serves ${tracked.stop.name}',
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '${_formatDistanceLabel(tracked.stopDistanceMeters)} away â€¢ $movingLabel â€¢ ${_liveVehicleMeta(tracked.vehicle, user: widget.location)}',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: rel == _BusUserRelative.passed
-                          ? const Color(0xFF7A1F1F)
-                          : null,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Click to track on map',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 10),
-            if (rel == _BusUserRelative.passed)
-              const ToneChip(
-                label: 'Passed you?',
-                color: Color(0xFF9B2E2E),
-              )
-            else
-              ConfidenceChip(
-                state: tracked.vehicle.confidenceState,
-                label: tracked.vehicle.statusText,
-              ),
-          ],
-        ),
-      ),
-    );
-  }
 
-  Widget _announcedRouteQuickCard(BuildContext context, _AreaRouteMatch item) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(18),
-      onTap: () => context.push(_routePath(item.arrival.routeId)),
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF8FBFB),
-          borderRadius: BorderRadius.circular(18),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            RoutePill(label: item.arrival.routeNumber),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    item.arrival.routeName,
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Closest stop ${item.stop.name} â€¢ ${_formatDistanceLabel(item.stopDistanceMeters)} away',
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Scheduled after ${item.arrival.scheduledLabel}',
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 10),
-            ConfidenceChip(state: 'announced', label: item.arrival.statusText),
-          ],
-        ),
-      ),
-    );
-  }
+
+
 
   Widget _filterChip(BuildContext context, _SurfaceStatusFilter filter) {
     final selected = _selectedFilter == filter;
@@ -2547,33 +2299,9 @@ class _LiveMapPanelState extends State<_LiveMapPanel>
     });
   }
 
-  void _startFollowSelectedBus() {
-    final selected = _selectedVehicle;
-    if (selected == null) {
-      return;
-    }
-    final zoom = (_lastZoom < 16.2 ? 16.2 : _lastZoom).clamp(15.4, 17.8);
-    setState(() {
-      _followSelectedVehicle = true;
-      _lastZoom = zoom;
-    });
-    if (_mapReady) {
-      _mapController.move(
-        _vehiclePoint(selected),
-        zoom,
-        id: 'follow-${selected.uid}',
-      );
-    }
-  }
 
-  void _clearFocus() {
-    setState(() {
-      _selectedVehicleUid = null;
-      _followSelectedVehicle = false;
-      _didFitInitialView = true;
-    });
-    _fitToContext();
-  }
+
+
 
   Future<void> _refreshAndReset() async {
     setState(() {
@@ -2674,16 +2402,7 @@ class _LiveMapPanelState extends State<_LiveMapPanel>
           )
           .map((tracked) => tracked.vehicle),
     ];
-    final otherVehicles = selectedVehicle == null
-        ? filteredNearbyVehicles
-        : filteredNearbyVehicles
-              .where((vehicle) => vehicle.uid != selectedVehicle.uid)
-              .toList();
-    final otherTrackedRouteVehicles = selectedVehicle == null
-        ? filteredExtraTrackedVehicles
-        : filteredExtraTrackedVehicles
-              .where((tracked) => tracked.vehicle.uid != selectedVehicle.uid)
-              .toList();
+
     final nearMeStatusLine = nearby == null
         ? 'Waiting for location and nearby live view.'
         : selectedVehicle != null
@@ -2700,9 +2419,7 @@ class _LiveMapPanelState extends State<_LiveMapPanel>
         : filteredExtraTrackedVehicles.isNotEmpty
         ? '${filteredExtraTrackedVehicles.length} buses on your routes showing on map'
         : _emptyNearbyMapMessage(_selectedFilter);
-    final focusUserRel = selectedVehicle != null
-        ? _busRelativeToUser(selectedVehicle, location)
-        : _BusUserRelative.unknown;
+
 
     return Stack(
       children: [

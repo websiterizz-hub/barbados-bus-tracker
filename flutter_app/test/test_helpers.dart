@@ -64,7 +64,7 @@ class FakeLocationService implements LocationService {
   final LocationLookup lookup;
 
   @override
-  Future<LocationLookup> getCurrentLocation() async => lookup;
+  Future<LocationLookup> getCurrentLocation({bool forcePrompt = false}) async => lookup;
 
   @override
   Future<bool> openAppSettings() async => true;
