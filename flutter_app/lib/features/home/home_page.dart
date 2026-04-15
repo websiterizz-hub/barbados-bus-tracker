@@ -1696,10 +1696,11 @@ class _HomePageState extends ConsumerState<HomePage> {
 
               // ðŸ“‹ Layer 2: Draggable Information Sheet
               DraggableScrollableSheet(
-                initialChildSize: 0.32,
+                initialChildSize: 0.28,
                 minChildSize: 0.12,
-                maxChildSize: 0.90,
+                maxChildSize: 0.94,
                 snap: true,
+                snapSizes: const [0.12, 0.28, 0.94],
                 builder: (context, scrollController) {
                   return ClipRRect(
                     borderRadius: const BorderRadius.only(
@@ -1924,8 +1925,9 @@ class _LiveMapPanelState extends State<_LiveMapPanel>
   int? _selectedVehicleUid;
   bool _mapReady = false;
   bool _didFitInitialView = false;
+  bool _didFitUserOnce = false;
   bool _followSelectedVehicle = false;
-  double _lastZoom = 14.3;
+  double _lastZoom = 14.8;
   _SurfaceStatusFilter _selectedFilter = _SurfaceStatusFilter.all;
 
   @override
@@ -2189,24 +2191,24 @@ class _LiveMapPanelState extends State<_LiveMapPanel>
     final BoxBorder? cardBorder;
     switch (rel) {
       case _BusUserRelative.passed:
-        cardBg = const Color(0xFF9B2E2E).withValues(alpha: 0.16);
+        cardBg = const Color(0xFFFF5252).withValues(alpha: 0.08);
         cardBorder = Border.all(
-          color: const Color(0x66C62828),
-          width: 1.5,
+          color: const Color(0xFFFF5252).withValues(alpha: 0.2),
+          width: 1,
         );
         break;
       case _BusUserRelative.approaching:
-        cardBg = confidenceColor(vehicle.confidenceState).withValues(alpha: 0.14);
+        cardBg = const Color(0xFF00E5FF).withValues(alpha: 0.06);
         cardBorder = Border.all(
-          color: const Color(0x440B7A75),
-          width: 1,
+          color: const Color(0xFF00E5FF).withValues(alpha: 0.25),
+          width: 0.8,
         );
         break;
       case _BusUserRelative.unknown:
-        cardBg = const Color(0xFFF8FBFB);
+        cardBg = Colors.white.withValues(alpha: 0.03);
         cardBorder = Border.all(
-          color: const Color(0x22000000),
-          width: 1,
+          color: Colors.white.withValues(alpha: 0.05),
+          width: 0.5,
         );
         break;
     }
@@ -2242,8 +2244,11 @@ class _LiveMapPanelState extends State<_LiveMapPanel>
                     _liveVehicleMeta(vehicle, user: user),
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: rel == _BusUserRelative.passed
-                          ? const Color(0xFF7A1F1F)
-                          : null,
+                          ? const Color(0xFFFF8A80)
+                          : rel == _BusUserRelative.approaching
+                              ? const Color(0xFF00E5FF)
+                              : Colors.white70,
+                      fontWeight: rel != _BusUserRelative.unknown ? FontWeight.w700 : null,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -2495,7 +2500,7 @@ class _LiveMapPanelState extends State<_LiveMapPanel>
     _mapController.fitCamera(
       CameraFit.coordinates(
         coordinates: points,
-        padding: const EdgeInsets.all(42),
+        padding: const EdgeInsets.fromLTRB(44, 80, 44, 260),
         maxZoom: widget.location != null ? 15.2 : 14.0,
         minZoom: widget.location != null ? 12.2 : 10.8,
       ),
@@ -2520,7 +2525,7 @@ class _LiveMapPanelState extends State<_LiveMapPanel>
         _mapController.fitCamera(
           CameraFit.coordinates(
             coordinates: [busPoint, userPoint],
-            padding: const EdgeInsets.fromLTRB(44, 44, 44, 140),
+            padding: const EdgeInsets.fromLTRB(44, 100, 44, 320),
             maxZoom: 17.2,
             minZoom: 12.8,
           ),
@@ -2612,6 +2617,12 @@ class _LiveMapPanelState extends State<_LiveMapPanel>
 
     if (!_didFitInitialView) {
       _didFitInitialView = true;
+      if (widget.location != null) {
+        _didFitUserOnce = true;
+      }
+      _fitToContext();
+    } else if (widget.location != null && !_didFitUserOnce) {
+      _didFitUserOnce = true;
       _fitToContext();
     }
   }

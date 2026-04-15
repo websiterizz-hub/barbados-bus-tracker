@@ -90,15 +90,24 @@ class SectionCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: useGlass
-            ? const Color(0xFF162534).withValues(alpha: 0.75)
+            ? const Color(0xFF1A2A3A).withValues(alpha: 0.70)
             : const Color(0xFF122030),
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
-        boxShadow: const [
+        borderRadius: BorderRadius.circular(32),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.08),
+          width: 0.5,
+        ),
+        boxShadow: [
           BoxShadow(
-            color: Color(0x33000000),
-            blurRadius: 40,
-            offset: Offset(0, 16),
+            color: Colors.black.withValues(alpha: 0.4),
+            blurRadius: 32,
+            offset: const Offset(0, 12),
+          ),
+          BoxShadow(
+            color: Colors.white.withValues(alpha: 0.02),
+            blurRadius: 1,
+            spreadRadius: 1,
+            offset: const Offset(0, 1),
           ),
         ],
       ),
